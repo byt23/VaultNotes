@@ -9,7 +9,6 @@ import SwiftUI
 import SwiftData
 import LocalAuthentication
 
-// MARK: - Model
 @Model
 class SifreliNot {
     var baslik: String
@@ -27,13 +26,11 @@ class SifreliNot {
     }
 }
 
-// MARK: - Renk Paleti (Logodan Alındı)
 extension Color {
-    static let vaultDark = Color(red: 0.05, green: 0.07, blue: 0.12) // Derin Karanlık
-    static let vaultSilver = Color(red: 0.75, green: 0.75, blue: 0.8) // Metalik Gümüş
+    static let vaultDark = Color(red: 0.05, green: 0.07, blue: 0.12)
+    static let vaultSilver = Color(red: 0.75, green: 0.75, blue: 0.8)
 }
 
-// MARK: - Gelişmiş Matrix Arka Plan
 struct MatrixBackground: View {
     let characters = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
     
@@ -59,11 +56,10 @@ struct MatrixColumn: View {
     var body: some View {
         Text(columnChars)
             .font(.system(size: 12, weight: .light, design: .monospaced))
-            .foregroundColor(.vaultSilver) // Yeşil yerine Gümüş yapıldı
+            .foregroundColor(.vaultSilver)
             .onAppear {
                 for _ in 0..<30 { columnChars += String(characters.randomElement()!) + "\n" }
                 position = -proxy.size.height
-                // Animasyon hızı yavaşlatıldı (10-20 saniye)
                 withAnimation(Animation.linear(duration: Double.random(in: 10...20)).repeatForever(autoreverses: false)) {
                     position = proxy.size.height
                 }
@@ -72,7 +68,7 @@ struct MatrixColumn: View {
     }
 }
 
-// MARK: - Ana Ekran
+
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) var scenePhase
@@ -92,7 +88,6 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // Arka Plan
                 Color.vaultDark.ignoresSafeArea()
                 
                 MatrixBackground()
@@ -131,7 +126,6 @@ struct ContentView: View {
                             }
                         }
                         .padding(.vertical, 8)
-                        // Hücre tasarımı logoya uyarlandı
                         .listRowBackground(
                             RoundedRectangle(cornerRadius: 12)
                                 .fill(Color.white.opacity(0.05))
@@ -175,7 +169,7 @@ struct ContentView: View {
             .sheet(isPresented: $eklemeModu) { eklemeSayfasi }
             .sheet(item: $duzenlenecekNot) { not in EditNoteView(not: not) }
         }
-        .preferredColorScheme(.dark) // Uygulamayı karanlık moda zorla
+        .preferredColorScheme(.dark)
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .inactive || newPhase == .background {
                 for not in notlar { not.kilitliMi = true }
@@ -183,7 +177,6 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Fonksiyonlar
     func dogrulamaBaslat(not: SifreliNot) {
         if !not.kilitliMi { withAnimation { not.kilitliMi = true }; return }
         let context = LAContext()

@@ -68,7 +68,6 @@ struct MatrixColumn: View {
     }
 }
 
-
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) var scenePhase

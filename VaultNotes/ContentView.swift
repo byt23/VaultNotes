@@ -27,6 +27,51 @@ class SifreliNot {
     }
 }
 
+// MARK: - Renk Paleti (Logodan Alındı)
+extension Color {
+    static let vaultDark = Color(red: 0.05, green: 0.07, blue: 0.12) // Derin Karanlık
+    static let vaultSilver = Color(red: 0.75, green: 0.75, blue: 0.8) // Metalik Gümüş
+}
+
+// MARK: - Gelişmiş Matrix Arka Plan
+struct MatrixBackground: View {
+    let characters = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    
+    var body: some View {
+        GeometryReader { proxy in
+            HStack(spacing: 12) {
+                ForEach(0..<Int(proxy.size.width / 15), id: \.self) { _ in
+                    MatrixColumn(proxy: proxy, characters: characters)
+                }
+            }
+            .mask(LinearGradient(colors: [.clear, .black, .clear], startPoint: .top, endPoint: .bottom))
+            .opacity(0.15)
+        }
+    }
+}
+
+struct MatrixColumn: View {
+    let proxy: GeometryProxy
+    let characters: [Character]
+    @State private var position: CGFloat = 0
+    @State private var columnChars = ""
+    
+    var body: some View {
+        Text(columnChars)
+            .font(.system(size: 12, weight: .light, design: .monospaced))
+            .foregroundColor(.vaultSilver) // Yeşil yerine Gümüş yapıldı
+            .onAppear {
+                for _ in 0..<30 { columnChars += String(characters.randomElement()!) + "\n" }
+                position = -proxy.size.height
+                // Animasyon hızı yavaşlatıldı (10-20 saniye)
+                withAnimation(Animation.linear(duration: Double.random(in: 10...20)).repeatForever(autoreverses: false)) {
+                    position = proxy.size.height
+                }
+            }
+            .offset(y: position)
+    }
+}
+
 // MARK: - Ana Ekran
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -46,66 +91,91 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(notlar) { not in
-                    HStack {
-                        Button { dogrulamaBaslat(not: not) } label: {
-                            HStack {
-                                Image(systemName: not.kilitliMi ? "lock.fill" : "lock.open.fill")
-                                    .foregroundColor(not.kilitliMi ? .red : .green)
-                                VStack(alignment: .leading) {
-                                    Text(not.baslik).font(.headline)
-                                    Text(not.kilitliMi ? "••••••••" : not.icerik)
-                                        .font(.subheadline).foregroundColor(.secondary)
+            ZStack {
+                // Arka Plan
+                Color.vaultDark.ignoresSafeArea()
+                
+                MatrixBackground()
+                    .ignoresSafeArea()
+                
+                List {
+                    ForEach(notlar) { not in
+                        HStack(spacing: 15) {
+                            Button { dogrulamaBaslat(not: not) } label: {
+                                HStack(spacing: 15) {
+                                    Image(systemName: not.kilitliMi ? "lock.fill" : "lock.open.fill")
+                                        .foregroundColor(not.kilitliMi ? .vaultSilver : .green)
+                                        .font(.title3)
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(not.baslik)
+                                            .font(.system(.headline, design: .monospaced))
+                                            .foregroundColor(.white)
+                                        
+                                        Text(not.kilitliMi ? "••••••••" : not.icerik)
+                                            .font(.system(.subheadline, design: .monospaced))
+                                            .foregroundColor(.vaultSilver.opacity(0.7))
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            
+                            Spacer()
+                            
+                            if !not.kilitliMi {
+                                Button { duzenlenecekNot = not } label: {
+                                    Image(systemName: "pencil.circle")
+                                        .foregroundColor(.vaultSilver)
+                                        .font(.title2)
                                 }
                             }
                         }
-                        .buttonStyle(.plain)
-                        
-                        Spacer()
-                        
-                        if !not.kilitliMi {
-                            Button { duzenlenecekNot = not } label: {
-                                Image(systemName: "pencil.circle").foregroundColor(.blue)
-                            }
-                        }
-                    }
-                    // Standart onDelete yerine swipe actions ile özel silme
-                    .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
-                            hedefNot = not
-                            silmeOnayModu = true
-                        } label: {
-                            Label("Sil", systemImage: "trash")
+                        .padding(.vertical, 8)
+                        // Hücre tasarımı logoya uyarlandı
+                        .listRowBackground(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.white.opacity(0.05))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.vaultSilver.opacity(0.2), lineWidth: 1)
+                                )
+                                .padding(.vertical, 4)
+                        )
+                        .listRowSeparator(.hidden)
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                hedefNot = not
+                                girilenSifre = ""
+                                silmeOnayModu = true
+                            } label: { Label("Sil", systemImage: "trash") }
                         }
                     }
                 }
+                .scrollContentBackground(.hidden)
             }
             .navigationTitle("VaultNotes")
             .toolbar {
-                Button { eklemeModu = true } label: { Image(systemName: "plus.circle.fill") }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { eklemeModu = true } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(.vaultSilver)
+                    }
+                }
             }
-            // Görüntüleme İçin Şifre Sor
-            .alert("Görüntüleme Şifresi", isPresented: $sifreCheckModu) {
+            .alert("Not Şifresi", isPresented: $sifreCheckModu) {
                 SecureField("Şifre", text: $girilenSifre)
                 Button("Aç") { sifreKontrolEt() }
                 Button("İptal", role: .cancel) { girilenSifre = "" }
             }
-            // Silme İçin Şifre Sor
             .alert("Silme İşlemini Onayla", isPresented: $silmeOnayModu) {
-                SecureField("Bu notun şifresini girin", text: $girilenSifre)
+                SecureField("Notun şifresini girin", text: $girilenSifre)
                 Button("Sil", role: .destructive) { guvenliSil() }
                 Button("Vazgeç", role: .cancel) { girilenSifre = "" }
-            } message: {
-                Text("Notu silmek için geçerli şifreyi girmelisiniz.")
-            }
-            .sheet(isPresented: $eklemeModu) {
-                eklemeSayfasi
-            }
-            .sheet(item: $duzenlenecekNot) { not in
-                EditNoteView(not: not)
-            }
+            } message: { Text("Notu silmek için şifresini girmelisiniz.") }
+            .sheet(isPresented: $eklemeModu) { eklemeSayfasi }
+            .sheet(item: $duzenlenecekNot) { not in EditNoteView(not: not) }
         }
+        .preferredColorScheme(.dark) // Uygulamayı karanlık moda zorla
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .inactive || newPhase == .background {
                 for not in notlar { not.kilitliMi = true }
@@ -113,10 +183,9 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Mantık Fonksiyonları
+    // MARK: - Fonksiyonlar
     func dogrulamaBaslat(not: SifreliNot) {
         if !not.kilitliMi { withAnimation { not.kilitliMi = true }; return }
-        
         let context = LAContext()
         var error: NSError?
         if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
@@ -127,15 +196,11 @@ struct ContentView: View {
                     DispatchQueue.main.async { hedefNot = not; sifreCheckModu = true }
                 }
             }
-        } else {
-            hedefNot = not; sifreCheckModu = true
-        }
+        } else { hedefNot = not; sifreCheckModu = true }
     }
 
     func sifreKontrolEt() {
-        if girilenSifre == hedefNot?.ozelSifre {
-            withAnimation { hedefNot?.kilitliMi = false }
-        }
+        if girilenSifre == hedefNot?.ozelSifre { withAnimation { hedefNot?.kilitliMi = false } }
         girilenSifre = ""
     }
 
@@ -162,23 +227,17 @@ struct ContentView: View {
                     TextField("Başlık", text: $yeniBaslik)
                     TextField("İçerik", text: $yeniIcerik)
                 }
-                Section("Şifre") {
-                    SecureField("Nota Özel Şifre", text: $yeniOzelSifre)
-                }
+                Section("Güvenlik") { SecureField("Nota Özel Şifre", text: $yeniOzelSifre) }
             }
             .navigationTitle("Yeni Kasa Notu")
-            .toolbar {
-                Button("Ekle") { ekle() }.disabled(yeniBaslik.isEmpty || yeniOzelSifre.isEmpty)
-            }
+            .toolbar { Button("Ekle") { ekle() }.disabled(yeniBaslik.isEmpty || yeniOzelSifre.isEmpty) }
         }
     }
 }
 
-// MARK: - Düzenleme Görünümü (Çift Doğrulamalı)
 struct EditNoteView: View {
     @Bindable var not: SifreliNot
     @Environment(\.dismiss) var dismiss
-    
     @State private var eskiSifreGiris = ""
     @State private var yeniSifreGiris = ""
     @State private var hataMesaji = ""
@@ -190,24 +249,19 @@ struct EditNoteView: View {
                     TextField("Başlık", text: $not.baslik)
                     TextField("İçerik", text: $not.icerik)
                 }
-                
-                Section(header: Text("Şifre Güncelle"), footer: Text(hataMesaji).foregroundColor(.red)) {
+                Section(header: Text("Güvenlik"), footer: Text(hataMesaji).foregroundColor(.red)) {
                     SecureField("Mevcut Şifre", text: $eskiSifreGiris)
-                    SecureField("Yeni Şifre (Değiştirmek istemiyorsanız boş bırakın)", text: $yeniSifreGiris)
+                    SecureField("Yeni Şifre (Opsiyonel)", text: $yeniSifreGiris)
                 }
             }
             .navigationTitle("Düzenle")
             .toolbar {
                 Button("Güncelle") {
                     if eskiSifreGiris == not.ozelSifre {
-                        if !yeniSifreGiris.isEmpty {
-                            not.ozelSifre = yeniSifreGiris
-                        }
-                        not.kilitliMi = true // Güvenlik için geri kilitle
+                        if !yeniSifreGiris.isEmpty { not.ozelSifre = yeniSifreGiris }
+                        not.kilitliMi = true
                         dismiss()
-                    } else {
-                        hataMesaji = "Mevcut şifre hatalı!"
-                    }
+                    } else { hataMesaji = "Mevcut şifre hatalı!" }
                 }
             }
         }
